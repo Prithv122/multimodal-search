@@ -16,6 +16,8 @@ from mmsearch.gallery import DataError, Gallery, load_gallery
 from mmsearch.report import format_stats, format_study
 from mmsearch.split import DEFAULT_DEV_FRACTION, DEFAULT_SPLIT_SEED, split_images
 
+TEST_RESULT_PATH = Path("results") / "test" / "eval.json"
+
 
 def _add_source(parser: argparse.ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
@@ -42,7 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     ev = sub.add_parser("eval", help="score the arms and print the table")
     _add_source(ev)
-    ev.add_argument("--split", choices=SPLITS, default="test")
+    ev.add_argument(
+        "--split",
+        choices=SPLITS,
+        default="dev",
+        help="dev (default), or test to score the held-out split once (see EVAL_PLAN.md)",
+    )
     ev.add_argument("--arm", nargs="+", choices=ARMS, help="only show these arms")
     ev.add_argument("--resamples", type=int, default=20_000)
     ev.add_argument("--seed", type=int, default=EvalConfig.seed, help="bootstrap seed")
@@ -52,7 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--min-confidence", type=float, default=None, help="OCR confidence floor")
     ev.add_argument("--reading-min-gain", type=float, default=EvalConfig.reading_min_gain)
     ev.add_argument("--visual-max-diff", type=float, default=EvalConfig.visual_max_abs_diff)
-    ev.add_argument("--out", type=Path, help="write results JSON here")
+    ev.add_argument(
+        "--out",
+        type=Path,
+        help=f"write results JSON here (real-data test runs always use {TEST_RESULT_PATH})",
+    )
     ev.add_argument(
         "--fail-on-prereg", action="store_true", help="exit 1 when a pre-registered check fails"
     )
@@ -80,7 +91,29 @@ def _cmd_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _test_guard(args: argparse.Namespace) -> Path | None:
+    """Enforce score-test-once for real data; returns the fixed output path when it applies.
+
+    Fixture runs are exempt and write wherever ``--out`` says. On real data, ``test`` always
+    writes ``results/test/eval.json`` and refuses to run again once that file exists; ``all``
+    is refused because it would score the test split without leaving that record.
+    """
+    if args.fixture or args.split == "dev":
+        return None
+    if args.split == "all":
+        raise DataError("--split all would score the test split; use dev, or test (scored once)")
+    if args.out is not None:
+        raise DataError(f"test results are always written to {TEST_RESULT_PATH}; drop --out")
+    if TEST_RESULT_PATH.exists():
+        raise DataError(
+            f"the test split was already scored ({TEST_RESULT_PATH} exists); per EVAL_PLAN.md "
+            "it is scored once. Anything changed afterwards is a dated amendment, not a re-run"
+        )
+    return TEST_RESULT_PATH
+
+
 def _cmd_eval(args: argparse.Namespace) -> int:
+    test_path = _test_guard(args)
     gallery = _gallery(args)
     config = EvalConfig(
         split=args.split,
@@ -96,10 +129,19 @@ def _cmd_eval(args: argparse.Namespace) -> int:
     )
     result = run_study(gallery, config)
     print(format_study(result))
-    if args.out:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(json.dumps(result.to_json(), indent=2) + "\n", encoding="utf-8")
-        print(f"\nwrote {args.out}")
+    out = test_path or args.out
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        payload = json.dumps(result.to_json(), indent=2) + "\n"
+        try:
+            # Exclusive create for the guarded test file, so two runs cannot both write it.
+            with out.open("x" if test_path else "w", encoding="utf-8") as handle:
+                handle.write(payload)
+        except FileExistsError:
+            raise DataError(
+                f"{out} appeared while scoring; the test split is scored once"
+            ) from None
+        print(f"\nwrote {out}")
     if args.fail_on_prereg:
         failed = [k for k in ("H1_reading", "H2_visual") if result.checks[k]["status"] == "FAIL"]
         if failed:

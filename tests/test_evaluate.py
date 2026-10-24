@@ -21,7 +21,7 @@ from mmsearch.evaluate import (
 from mmsearch.gallery import SOURCES, Gallery, Query
 from mmsearch.split import split_images
 
-FAST = EvalConfig(resamples=1000)
+FAST = EvalConfig(resamples=1000, split="test")
 
 
 def _row(result, kind, slice_name, metric="ndcg@10", **match):
@@ -129,8 +129,8 @@ def test_weight_selection_never_sees_test_queries(small, monkeypatch):
 
 def test_dev_choices_do_not_change_when_test_labels_change(small):
     scrambled = _scramble_test_labels(small)
-    a = run_study(small, EvalConfig(resamples=200))
-    b = run_study(scrambled, EvalConfig(resamples=200))
+    a = run_study(small, EvalConfig(resamples=200, split="test"))
+    b = run_study(scrambled, EvalConfig(resamples=200, split="test"))
 
     assert a.config["weight"]["sweep"] == b.config["weight"]["sweep"]
     assert a.config["weight"]["chosen_clip_weight"] == b.config["weight"]["chosen_clip_weight"]

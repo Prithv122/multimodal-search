@@ -165,3 +165,63 @@ def test_missing_data_dir_is_a_clear_error(tmp_path, capsys):
 def test_fixture_and_data_dir_are_exclusive():
     with pytest.raises(SystemExit):
         main(["stats", "--fixture", "planted", "--data-dir", "x"])
+
+
+# -- the score-test-once guard on real data ---------------------------------------
+@pytest.fixture
+def real_dir(tmp_path, monkeypatch):
+    root = write_fixture(
+        _real_make_fixture("planted", n_per_source=12, captions_per_image=2, dim=8),
+        tmp_path / "data",
+    )
+    monkeypatch.chdir(tmp_path)
+    return root
+
+
+def test_eval_defaults_to_dev(capsys):
+    main(["eval", "--fixture", "planted", "--resamples", "50"])
+    assert "split=dev" in capsys.readouterr().out
+
+
+def test_dev_on_real_data_writes_nothing_unless_asked(real_dir, tmp_path, capsys):
+    assert main(["eval", "--data-dir", str(real_dir), "--resamples", "50"]) == 0
+    assert not (tmp_path / "results").exists()
+
+
+def test_test_split_on_real_data_writes_the_fixed_path_once(real_dir, tmp_path, capsys):
+    args = ["eval", "--data-dir", str(real_dir), "--split", "test", "--resamples", "50"]
+    assert main(args) == 0
+    written = tmp_path / "results" / "test" / "eval.json"
+    assert json.loads(written.read_text(encoding="utf-8"))["config"]["split"] == "test"
+    before = written.read_text(encoding="utf-8")
+
+    assert main(args) == 2
+    err = capsys.readouterr().err
+    assert "already scored" in err and "EVAL_PLAN.md" in err
+    assert written.read_text(encoding="utf-8") == before
+
+
+def test_test_split_on_real_data_refuses_a_custom_out_and_all(real_dir, tmp_path, capsys):
+    base = ["eval", "--data-dir", str(real_dir), "--resamples", "50"]
+    assert main([*base, "--split", "test", "--out", str(tmp_path / "x.json")]) == 2
+    assert main([*base, "--split", "all"]) == 2
+    assert not (tmp_path / "results").exists()
+
+
+def test_fixture_runs_are_exempt_from_the_guard(tmp_path, capsys):
+    out = tmp_path / "a.json"
+    args = [
+        "eval",
+        "--fixture",
+        "planted",
+        "--split",
+        "test",
+        "--resamples",
+        "50",
+        "--out",
+        str(out),
+    ]
+    assert main(args) == 0
+    assert main(args) == 0
+    assert main([*args[:-2], "--out", str(out)]) == 0
+    assert main(["eval", "--fixture", "planted", "--split", "all", "--resamples", "50"]) == 0

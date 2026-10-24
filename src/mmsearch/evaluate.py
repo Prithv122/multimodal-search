@@ -56,7 +56,7 @@ DIFF_PAIRS = (
 
 @dataclass(frozen=True)
 class EvalConfig:
-    split: str = "test"
+    split: str = "dev"  # test is scored only when asked for explicitly
     arms: tuple[str, ...] | None = None  # row filter only; every arm is always computed
     resamples: int = 20_000
     seed: int = 47  # bootstrap seed
