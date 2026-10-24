@@ -35,7 +35,7 @@ from typing import Any
 import numpy as np
 
 from mmsearch._vendor.metrics import RetrievalScore
-from mmsearch.arms import ARMS, FUSION_ARMS, Ranking, Retriever, fuse_rankings
+from mmsearch.arms import ARMS, FUSION_ARMS, BaseRankings, Ranking, Retriever, fuse_rankings
 from mmsearch.gallery import TAGS, Gallery, Query
 from mmsearch.split import DEFAULT_DEV_FRACTION, DEFAULT_SPLIT_SEED, split_images
 
@@ -107,7 +107,7 @@ def metrics_matrix(rankings: Mapping[str, Ranking], queries: Sequence[Query]) ->
 # ---------------------------------------------------------------------------
 def select_weight(
     dev_queries: Sequence[Query],
-    base_rankings: Mapping[str, tuple[Ranking, Ranking]],
+    base_rankings: Mapping[str, BaseRankings],
     *,
     top_k: int,
     grid: Sequence[float] = DEFAULT_WEIGHT_GRID,
@@ -122,8 +122,10 @@ def select_weight(
     for w in grid:
         total = 0.0
         for q in dev_queries:
-            clip_r, ocr_r = base_rankings[q.qid]
-            fused = fuse_rankings("fuse_score_weighted", clip_r, ocr_r, top_k=top_k, weight=w)
+            base = base_rankings[q.qid]
+            fused = fuse_rankings(
+                "fuse_score_weighted", base.clip, base.ocr, top_k=top_k, weight=w, ties=base.ties
+            )
             total += float(query_metrics(fused, q.image_id)[NDCG])
         table.append({"weight": float(w), "dev_ndcg@10": total / len(dev_queries)})
     best = min(
@@ -210,7 +212,9 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
     retriever = Retriever.from_gallery(
         gallery, top_k=config.top_k, min_confidence=config.min_confidence
     )
-    base = {q.qid: retriever.base_rankings(q.text, gallery.query_vector(q.qid)) for q in queries}
+    base = {
+        q.qid: retriever.base_rankings(q.text, gallery.query_vector(q.qid), q.qid) for q in queries
+    }
 
     # -- dev-only choices ------------------------------------------------
     choice = select_weight(
@@ -221,12 +225,14 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
     )
 
     def arm_ranking(arm: str, qid: str) -> Ranking:
-        clip_r, ocr_r = base[qid]
+        b = base[qid]
         if arm == "clip":
-            return clip_r
+            return b.clip
         if arm == "ocr_bm25":
-            return ocr_r
-        return fuse_rankings(arm, clip_r, ocr_r, top_k=config.top_k, weight=choice.weight)
+            return b.ocr
+        return fuse_rankings(
+            arm, b.clip, b.ocr, top_k=config.top_k, weight=choice.weight, ties=b.ties
+        )
 
     per_query = {
         arm: metrics_matrix({q.qid: arm_ranking(arm, q.qid) for q in queries}, queries)

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 import mmsearch.evaluate as ev
-from mmsearch.arms import ARMS, FUSION_ARMS
+from mmsearch.arms import ARMS, FUSION_ARMS, BaseRankings
 from mmsearch.evaluate import (
     METRICS,
     EvalConfig,
@@ -144,7 +144,9 @@ def test_dev_choices_do_not_change_when_test_labels_change(small):
 
 def test_weight_ties_go_to_the_weight_closest_to_half():
     q = Query("q", "x", "gold", "coco")
-    base = {"q": ([("gold", 0.9), ("other", 0.1)], [])}  # OCR silent: every w > 0 ranks gold first
+    base = {
+        "q": BaseRankings([("gold", 0.9), ("other", 0.1)], [])
+    }  # OCR silent: every w > 0 ranks gold first
     choice = select_weight([q], base, top_k=10)
     assert choice.weight == 0.5
     assert len(choice.table) == 21

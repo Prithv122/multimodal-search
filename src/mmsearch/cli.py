@@ -125,7 +125,9 @@ def _cmd_search(args: argparse.Namespace) -> int:
             vector = FakeEmbedder(gallery.require_embeddings().dim).encode_query(args.text)
         else:
             raise DataError(f"arm {args.arm!r} needs a query vector: pass --query-qid or --encoder")
-    ranking = retriever.rank(args.arm, args.text, vector, weight=args.weight)[: args.top_k]
+    ranking = retriever.rank(
+        args.arm, args.text, vector, weight=args.weight, query_key=args.query_qid
+    )[: args.top_k]
     if not ranking:
         print("no results")
         return 0
