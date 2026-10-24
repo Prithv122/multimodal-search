@@ -12,9 +12,17 @@ dependencies = [
 [project.optional-dependencies]
 # Heavy, local-only: CLIP image/text encoders and OCR over the downloaded gallery.
 # CI never installs this extra; it replays the committed arrays instead.
-embed = []
+embed = [
+    "torch==2.14.1",
+    "transformers==5.20.2",
+    "pillow==12.2.0",
+    "paddleocr==3.7.0",
+    "paddlepaddle==3.2.2",
+]
 # Gradio demo over the committed index.
-demo = []
+demo = [
+    "gradio==6.30.0",
+]
 
 # Console entry points need a real build backend: a uv virtual project
 # ([tool.uv] package = false) installs nothing, so the documented command fails
