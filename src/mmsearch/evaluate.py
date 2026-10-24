@@ -39,7 +39,10 @@ from mmsearch.arms import ARMS, FUSION_ARMS, BaseRankings, Ranking, Retriever, f
 from mmsearch.gallery import TAGS, Gallery, Query
 from mmsearch.split import DEFAULT_DEV_FRACTION, DEFAULT_SPLIT_SEED, split_images
 
-METRICS = ("recall@1", "recall@5", "recall@10", "ndcg@10", "mrr")
+# MRR is computed over each arm's top-``top_k`` list (100 by default), so a gold image outside it
+# scores 0: that is why the metric is named MRR@100. The vendored function calls it "mrr".
+METRICS = ("recall@1", "recall@5", "recall@10", "ndcg@10", "mrr@100")
+_VENDORED_KEY = {"mrr@100": "mrr"}
 NDCG = METRICS.index("ndcg@10")
 SPLITS = ("dev", "test", "all")
 DEFAULT_WEIGHT_GRID = tuple(round(i * 0.05, 2) for i in range(21))
@@ -94,7 +97,7 @@ def query_metrics(ranking: Ranking, gold_image_id: str) -> np.ndarray:
     """The five metrics for one query whose only relevant item is ``gold_image_id``."""
     score = RetrievalScore.evaluate([image_id for image_id, _ in ranking], [gold_image_id])
     values = score.as_dict()
-    return np.array([values[m] for m in METRICS], dtype=np.float64)
+    return np.array([values[_VENDORED_KEY.get(m, m)] for m in METRICS], dtype=np.float64)
 
 
 def metrics_matrix(rankings: Mapping[str, Ranking], queries: Sequence[Query]) -> np.ndarray:
@@ -312,6 +315,13 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
     checks = preregistered_checks(rows, best_fusion, best_single, config)
     checks["best_fusion"] = best_fusion
     checks["best_fusion_dev_ndcg@10"] = {a: dev_ndcg[a] for a in FUSION_ARMS}
+    checks["best_fusion_selection"] = {
+        "chosen": best_fusion,
+        "dev_ndcg@10": {a: dev_ndcg[a] for a in FUSION_ARMS},
+        "chosen_clip_weight": choice.weight,
+        "note": "fuse_score_weighted has its CLIP weight tuned on dev, the other two have no "
+        "tuned parameter, so its dev score is in-sample and favours it in this pick",
+    }
     checks["confirmatory"] = config.split == "test"
 
     if config.arms:

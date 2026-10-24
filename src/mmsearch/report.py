@@ -57,7 +57,10 @@ def format_study(result: StudyResult) -> str:
         f"resamples={cfg['resamples']}  seed={cfg['seed']}",
         f"fuse_score_weighted: CLIP weight {cfg['weight']['chosen_clip_weight']:.2f} "
         f"(chosen on dev, dev nDCG@10 {cfg['weight']['dev_ndcg@10']:.3f})",
-        f"best fusion (chosen on dev): {checks['best_fusion']}",
+        f"best fusion (chosen on dev): {checks['best_fusion']}  [dev nDCG@10 "
+        + ", ".join(f"{k} {v:.3f}" for k, v in checks["best_fusion_dev_ndcg@10"].items())
+        + "; the weighted arm's weight was tuned on dev]",
+        "MRR@100: reciprocal rank within the top 100 (gold outside it counts 0)",
     ]
     if not checks["confirmatory"]:
         out.append(
