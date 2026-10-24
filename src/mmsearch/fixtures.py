@@ -1,6 +1,6 @@
 """Synthetic galleries that let the whole pipeline be tested without any real data.
 
-Two variants share one generator and differ only in what the OCR text contains:
+Four variants share one generator and differ only in what the captions and OCR text contain:
 
 ``planted``
     Reading-slice ("textcaps") captions mention words that are printed in the image and so
@@ -11,6 +11,16 @@ Two variants share one generator and differ only in what the OCR text contains:
 ``null``
     Identical captions and image vectors, but the OCR text is drawn independently of the
     captions, so OCR carries no signal. A correct pipeline must not find a fusion gain.
+``filler``
+    ``planted`` plus common filler tokens ("a", "the", "of", ...) in every caption and in the
+    OCR text of both slices, as real captions and real OCR share. A visual-slice query now
+    matches OCR text through filler alone, and min-max scaling lifts that weak top OCR hit to
+    1.0, which is the realistic way for fusion to hurt the visual slice. The reading-slice
+    effect should survive; whether the visual slice does is what this variant measures.
+``shuffled``
+    ``filler`` with the reading-slice OCR text moved to other images (a cyclic shift among the
+    textcaps images). BM25 is then confidently wrong: the caption's printed words match another
+    image's text, with high weight. Fusion has no gain to find and a lot to lose.
 
 Words are opaque tokens (``v017`` visible, ``r0421`` printed, ``n07`` shared sign noise), which
 keeps the generator free of any real-language ambiguity. Nothing here is a measurement of a real
@@ -36,9 +46,29 @@ from mmsearch.gallery import (
     Query,
 )
 
-FIXTURE_KINDS = ("planted", "null")
+FIXTURE_KINDS = ("planted", "null", "filler", "shuffled")
+
+_FILLER = ("a", "the", "of", "on", "in", "with")
 
 _N_VISUAL, _N_READING, _N_NOISE = 400, 3000, 50
+
+
+def _draw_filler(rng: np.random.Generator, n: int = 2) -> list[str]:
+    return [_FILLER[int(i)] for i in rng.integers(len(_FILLER), size=n)]
+
+
+def _shuffle_reading_ocr(ocr: dict[str, OcrRecord], textcaps_ids: list[str]) -> None:
+    """Give each textcaps image the printed words of another textcaps image."""
+    n = len(textcaps_ids)
+    shift = n // 3 + 1
+    printed = {i: [ln.text for ln in ocr[i].lines if ln.text.startswith("r")] for i in textcaps_ids}
+    for k, image_id in enumerate(textcaps_ids):
+        donor = printed[textcaps_ids[(k + shift) % n]]
+        lines = list(ocr[image_id].lines)
+        for j, text in enumerate(donor):
+            lines[j] = OcrLine(text, lines[j].confidence)
+        record = ocr[image_id]
+        ocr[image_id] = OcrRecord(image_id, tuple(lines), record.engine, record.preprocessing)
 
 
 def make_fixture(
@@ -53,6 +83,9 @@ def make_fixture(
     if kind not in FIXTURE_KINDS:
         raise ValueError(f"unknown fixture {kind!r}; expected one of {list(FIXTURE_KINDS)}")
     rng = np.random.default_rng(seed)
+    # Filler comes from its own stream so the planted and null fixtures stay byte-stable.
+    filler_rng = np.random.default_rng(seed + 7919)
+    with_filler = kind in ("filler", "shuffled")
     items: list[GalleryItem] = []
     queries: list[Query] = []
     ocr: dict[str, OcrRecord] = {}
@@ -91,12 +124,14 @@ def make_fixture(
             for k in range(captions_per_image):
                 if source == "coco":
                     words = [str(w) for w in rng.permutation(visual)[:2]]
+                    words += _draw_filler(filler_rng) if with_filler else []
                     tag = "visual" if tagged else None
                 else:
                     n_read = 2 if k % 2 == 0 else 1
                     words = [str(rng.choice(visual))] + [
                         str(w) for w in rng.permutation(printed)[:n_read]
                     ]
+                    words += _draw_filler(filler_rng) if with_filler else []
                     tag = ("text" if k % 2 == 0 else "both") if tagged else None
                 queries.append(
                     Query(
@@ -106,6 +141,17 @@ def make_fixture(
                         source=source,
                         tag=tag,
                     )
+                )
+
+    if kind == "shuffled":
+        _shuffle_reading_ocr(ocr, [i.image_id for i in items if i.source == "textcaps"])
+    if with_filler:
+        for item in items:
+            record = ocr[item.image_id]
+            if item.source == "textcaps" or filler_rng.random() < 0.6:
+                line = OcrLine(" ".join(_draw_filler(filler_rng, 2)), 0.8)
+                ocr[item.image_id] = OcrRecord(
+                    record.image_id, (*record.lines, line), record.engine, record.preprocessing
                 )
 
     embedder = FakeEmbedder(dim)

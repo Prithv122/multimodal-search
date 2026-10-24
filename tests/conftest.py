@@ -27,3 +27,19 @@ def tiny() -> Gallery:
 def small() -> Gallery:
     """A smaller planted gallery for tests that do not need statistical power."""
     return make_fixture("planted", n_per_source=40, captions_per_image=3)
+
+
+@pytest.fixture(scope="session")
+def filler() -> Gallery:
+    return make_fixture("filler")
+
+
+@pytest.fixture(scope="session")
+def shuffled() -> Gallery:
+    return make_fixture("shuffled")
+
+
+@pytest.fixture(scope="session")
+def small_filler() -> Gallery:
+    """Many exact ties (shared filler tokens) at a size that runs quickly."""
+    return make_fixture("filler", n_per_source=40, captions_per_image=3)
