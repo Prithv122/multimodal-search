@@ -194,7 +194,10 @@ def _exif_orientation(tiff: bytes) -> int:
 def ensure_annotations() -> dict:
     ANN_DIR.mkdir(parents=True, exist_ok=True)
     manifest: dict = {}
-    for name, url, dest in (("coco_zip", COCO_ZIP_URL, COCO_ZIP), ("textcaps_val", TC_URL, TC_JSON)):
+    for name, url, dest in (
+        ("coco_zip", COCO_ZIP_URL, COCO_ZIP),
+        ("textcaps_val", TC_URL, TC_JSON),
+    ):
         status, length = http_head(url)
         if status != 200:
             sys.exit(f"annotation URL not reachable ({status}): {url}")
@@ -203,7 +206,11 @@ def ensure_annotations() -> dict:
             fetch_to(url, dest, timeout=120)
         manifest[name] = {"url": url, "bytes": dest.stat().st_size, "sha256": sha256_file(dest)}
     if not COCO_JSON.exists():
-        with zipfile.ZipFile(COCO_ZIP) as z, z.open(COCO_MEMBER) as src, COCO_JSON.open("wb") as out:
+        with (
+            zipfile.ZipFile(COCO_ZIP) as z,
+            z.open(COCO_MEMBER) as src,
+            COCO_JSON.open("wb") as out,
+        ):
             shutil.copyfileobj(src, out)
     manifest["coco_captions_val2017"] = {
         "url": COCO_ZIP_URL + "#" + COCO_MEMBER,
@@ -298,7 +305,10 @@ def write_tables(gallery: list[dict], queries: list[dict]) -> None:
     gallery = sorted(gallery, key=lambda r: (SOURCES.index(r["source"]), r["image_id"]))
     present = {r["image_id"] for r in gallery}
     pos = {r["image_id"]: i for i, r in enumerate(gallery)}
-    queries = sorted((q for q in queries if q["image_id"] in present), key=lambda q: (pos[q["image_id"]], q["qid"]))
+    queries = sorted(
+        (q for q in queries if q["image_id"] in present),
+        key=lambda q: (pos[q["image_id"]], q["qid"]),
+    )
     write_jsonl(GALLERY, gallery)
     write_jsonl(QUERIES, queries)
 
@@ -310,8 +320,10 @@ def cmd_select(args: argparse.Namespace) -> None:
     if args.dry_run:
         for u in (COCO_ZIP_URL, TC_URL):
             print(f"HEAD {u} -> {http_head(u)}")
-        print(f"plan: seed {SEED}, {N_PER_SOURCE} images per source "
-              f"({', '.join(SOURCES)}), write {GALLERY.name} + {QUERIES.name}")
+        print(
+            f"plan: seed {SEED}, {N_PER_SOURCE} images per source "
+            f"({', '.join(SOURCES)}), write {GALLERY.name} + {QUERIES.name}"
+        )
         return
     manifest = ensure_annotations()
     for k, v in manifest.items():
@@ -359,8 +371,10 @@ def cmd_download(args: argparse.Namespace) -> None:
     validate(gallery, queries)
     if args.dry_run:
         have = sum(local_path(r).exists() for r in gallery)
-        print(f"plan: {len(gallery)} images, {have} already on disk under {IMG_DIR}, "
-              f"workers={MAX_WORKERS}, retries={RETRIES}")
+        print(
+            f"plan: {len(gallery)} images, {have} already on disk under {IMG_DIR}, "
+            f"workers={MAX_WORKERS}, retries={RETRIES}"
+        )
         rng = random.Random(SEED)
         for s in SOURCES:
             rows = [r for r in gallery if r["source"] == s]
@@ -402,7 +416,9 @@ def cmd_download(args: argparse.Namespace) -> None:
             used = set(done) | burned | {r["image_id"] for r in pending}
             nxt = next(i for i in cat.order[src] if i not in used)
             rep = cat.gallery_row(src, nxt)
-            replacements.append({"source": src, "failed": row["image_id"], "reason": err, "replacement": nxt})
+            replacements.append(
+                {"source": src, "failed": row["image_id"], "reason": err, "replacement": nxt}
+            )
             print(f"  replaced {row['image_id']} ({err}) -> {nxt}")
             pending.append(rep)
             local_path(row).unlink(missing_ok=True) if "duplicate" in err else None
@@ -422,10 +438,14 @@ def cmd_download(args: argparse.Namespace) -> None:
         assert sum(r["source"] == s for r in final_gallery) == N_PER_SOURCE, s
     write_tables(final_gallery, final_queries)
     sizes = sorted(max(r["width"], r["height"]) for r in final_gallery)
-    print(f"done: {len(final_gallery)} images, {total_bytes} bytes, {len(replacements)} replacements, "
-          f"{time.time() - t0:.0f}s")
-    print(f"grayscale={stats['grayscale']} exif-rotated={stats['rotated_exif']} "
-          f"longest side min/median/max={sizes[0]}/{sizes[len(sizes) // 2]}/{sizes[-1]}")
+    print(
+        f"done: {len(final_gallery)} images, {total_bytes} bytes, {len(replacements)} replacements, "
+        f"{time.time() - t0:.0f}s"
+    )
+    print(
+        f"grayscale={stats['grayscale']} exif-rotated={stats['rotated_exif']} "
+        f"longest side min/median/max={sizes[0]}/{sizes[len(sizes) // 2]}/{sizes[-1]}"
+    )
 
 
 def validate(gallery: list[dict], queries: list[dict]) -> None:
@@ -442,8 +462,10 @@ def validate(gallery: list[dict], queries: list[dict]) -> None:
     assert idset == {q["image_id"] for q in queries}, "image without queries"
     hashes = [r["sha256"] for r in gallery if r["sha256"]]
     assert len(hashes) == len(set(hashes)), "duplicate sha256"
-    print(f"ok: {len(gallery)} images, {len(queries)} queries; "
-          f"{len(hashes)} hashed; ids unique, prefixes disjoint")
+    print(
+        f"ok: {len(gallery)} images, {len(queries)} queries; "
+        f"{len(hashes)} hashed; ids unique, prefixes disjoint"
+    )
 
 
 def cmd_tagsheet(args: argparse.Namespace) -> None:
@@ -466,7 +488,14 @@ def cmd_tagsheet(args: argparse.Namespace) -> None:
     for n, q in enumerate(picked, 1):
         blind = f"t{n:03d}"
         shutil.copyfile(local_path(by_id[q["image_id"]]), img_out / f"{blind}.jpg")
-        rows.append({"qid": blind, "text": q["text"], "image_path": f"../local/tagging_images/{blind}.jpg", "tag": ""})
+        rows.append(
+            {
+                "qid": blind,
+                "text": q["text"],
+                "image_path": f"../local/tagging_images/{blind}.jpg",
+                "tag": "",
+            }
+        )
         key.append({"blind_id": blind, "qid": q["qid"]})
     with (TAG_DIR / "tag_sheet.csv").open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["qid", "text", "image_path", "tag"], lineterminator="\n")
@@ -478,11 +507,11 @@ def cmd_tagsheet(args: argparse.Namespace) -> None:
         w.writerows(key)
     cards = "\n".join(
         f'<section><h2>{r["qid"]}</h2><img src="{r["image_path"]}" alt="{r["qid"]}" loading="lazy">'
-        f'<p>{html.escape(r["text"])}</p></section>'
+        f"<p>{html.escape(r['text'])}</p></section>"
         for r in rows
     )
     (TAG_DIR / "tag_sheet.html").write_text(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
+        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
         "<title>Tagging sheet</title><style>"
         "body{font:16px/1.4 system-ui,sans-serif;max-width:900px;margin:1rem auto;padding:0 1rem}"
         "section{display:flex;gap:1rem;align-items:flex-start;border-top:1px solid #ccc;padding:1rem 0}"
@@ -497,8 +526,12 @@ def cmd_tagsheet(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--dry-run", action="store_true", help="validate and print the plan; download no images")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="validate and print the plan; download no images"
+    )
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("select")
     sub.add_parser("download")

@@ -117,4 +117,17 @@ users re-run the local embedding step.
 
 ## Download results
 
-Filled in after the download (see the section below once the run has finished).
+Run 2026-10-25 with `scripts/fetch_gallery.py download` (8 workers):
+
+| | COCO | TextCaps | Total |
+|---|---|---|---|
+| Images | 500 | 500 | 1,000 |
+| Queries (captions) | 2,502 | 2,500 | 5,002 |
+| Captions per image | 5.00 | 5.00 | |
+| Bytes on disk | 80,503,307 | 142,821,326 | 223,324,633 |
+| Longest side (max) | 640 | 1,024 | |
+
+- Failures and replacements: 0. All 1,000 sha256 values are distinct.
+- Pixel sizes read from the downloaded files equal the sizes in the annotations for all 1,000.
+- 6 grayscale files; 0 files with an EXIF rotation flag.
+- Wall time about 5 minutes; fetches of 1,000 images use 1,000 requests plus the two annotation files.
