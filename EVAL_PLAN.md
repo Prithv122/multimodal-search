@@ -81,4 +81,26 @@ thresholds after seeing a test number; scoring test more than once; tuning anyth
 
 ## Amendments
 
-_None yet._
+### A1 — 2026-10-25, before any real dev or test number was computed
+
+An independent code review, run on synthetic fixtures only, found that tied scores were broken
+by something that tracks the slice under test:
+
+- fused lists were ordered by image id on ties, and every `coco_…` id sorts before every `tc_…`
+  id;
+- the BM25 top-k selection left tied documents in near-reverse file order, and the gallery file
+  lists COCO first.
+
+Exact ties are common here. In RRF, an image found only by CLIP at rank r ties with an image found
+only by OCR at rank r. Left alone, this would have pushed the visual slice and the reading slice
+in opposite directions through id spelling alone.
+
+**Change.** Every arm's list and every fused list is re-sorted by (score descending, then a
+per-query hash of query id and image id). That order is deterministic and independent of source
+and file order. Two other changes:
+
+- MRR is labelled **MRR@100**, since a gold image outside an arm's top 100 scores 0;
+- the CLI scores test only when asked explicitly, and refuses a second test run.
+
+Nothing else changes: arms, k, weight grid, split, thresholds and the best-fusion rule stay as
+written above.
