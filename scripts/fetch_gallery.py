@@ -131,7 +131,7 @@ def fetch_to(url: str, dest: Path, retries: int = RETRIES, timeout: int = 60) ->
             if e.code in (400, 401, 403, 404, 410):  # permanent
                 part.unlink(missing_ok=True)
                 raise
-        except Exception as e:  # noqa: BLE001 - network flakiness, retried
+        except Exception as e:
             last = e
         time.sleep(2**attempt)
     assert last is not None
@@ -183,7 +183,7 @@ def _exif_orientation(tiff: bytes) -> int:
             e = ifd + 2 + 12 * k
             if int.from_bytes(tiff[e : e + 2], order) == 0x0112:
                 return int.from_bytes(tiff[e + 8 : e + 10], order)
-    except Exception:  # noqa: BLE001 - malformed EXIF is not fatal
+    except Exception:
         pass
     return 1
 
@@ -361,7 +361,7 @@ def fetch_one(row: dict) -> tuple[dict, str | None]:
         out["width"], out["height"] = info["width"], info["height"]
         out["_components"], out["_orientation"] = info["components"], info["orientation"]
         return out, None
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return row, f"{type(e).__name__}: {e}"
 
 
@@ -387,7 +387,6 @@ def cmd_download(args: argparse.Namespace) -> None:
     replacements: list[dict] = read_jsonl(REPLACEMENTS) if REPLACEMENTS.exists() else []
     burned = {x["failed"] for x in replacements}
     done: dict[str, dict] = {}
-    extra: dict[str, dict] = {}
     seen_sha: dict[str, str] = {}
     pending = list(gallery)
     total_bytes = 0
@@ -439,7 +438,8 @@ def cmd_download(args: argparse.Namespace) -> None:
     write_tables(final_gallery, final_queries)
     sizes = sorted(max(r["width"], r["height"]) for r in final_gallery)
     print(
-        f"done: {len(final_gallery)} images, {total_bytes} bytes, {len(replacements)} replacements, "
+        f"done: {len(final_gallery)} images, {total_bytes} bytes, "
+        f"{len(replacements)} replacements, "
         f"{time.time() - t0:.0f}s"
     )
     print(
@@ -514,11 +514,13 @@ def cmd_tagsheet(args: argparse.Namespace) -> None:
         '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
         "<title>Tagging sheet</title><style>"
         "body{font:16px/1.4 system-ui,sans-serif;max-width:900px;margin:1rem auto;padding:0 1rem}"
-        "section{display:flex;gap:1rem;align-items:flex-start;border-top:1px solid #ccc;padding:1rem 0}"
+        "section{display:flex;gap:1rem;align-items:flex-start;"
+        "border-top:1px solid #ccc;padding:1rem 0}"
         "h2{font-size:1rem;min-width:3.5rem;margin:0}img{max-width:420px;max-height:320px;height:auto}"
         "p{margin:0;font-size:1.1rem}</style></head><body>\n"
         "<h1>Tag each caption: visual, text or both</h1>\n"
-        "<p>Record tags in tag_sheet.csv, matching the id shown here (see README.md for the labels).</p>\n"
+        "<p>Record tags in tag_sheet.csv, matching the id shown here "
+        "(see README.md for the labels).</p>\n"
         f"{cards}\n</body></html>\n",
         encoding="utf-8",
     )
