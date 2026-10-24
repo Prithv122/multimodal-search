@@ -28,5 +28,15 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: Fast job must not have torch
+        run: |
+          uv run python -c "import importlib.util, sys; sys.exit(1 if importlib.util.find_spec('torch') else 0)"
+
       - name: Test
         run: uv run pytest --cov=src --cov-report=term-missing
+
+      - name: Fixture stats
+        run: uv run mmsearch stats --fixture planted
+
+      - name: Planted effect is detected on the test split
+        run: uv run mmsearch eval --fixture planted --split test --resamples 2000
