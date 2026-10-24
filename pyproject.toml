@@ -1,0 +1,49 @@
+[project]
+name = "multimodal-search"
+version = "0.1.0"
+description = "Text-to-image search that can read: CLIP vs OCR-BM25 vs fusion on visual and reading queries"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.14",
+]
+
+[project.optional-dependencies]
+# Heavy, local-only: CLIP image/text encoders and OCR over the downloaded gallery.
+# CI never installs this extra; it replays the committed arrays instead.
+embed = []
+# Gradio demo over the committed index.
+demo = []
+
+# Console entry points need a real build backend: a uv virtual project
+# ([tool.uv] package = false) installs nothing, so the documented command fails
+# with "No module named ..." even while tests pass (pytest's pythonpath hides it).
+[project.scripts]
+mmsearch = "mmsearch.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mmsearch"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
