@@ -21,3 +21,9 @@ def null() -> Gallery:
 @pytest.fixture
 def tiny() -> Gallery:
     return make_fixture("planted", n_per_source=6, captions_per_image=2, dim=16)
+
+
+@pytest.fixture(scope="session")
+def small() -> Gallery:
+    """A smaller planted gallery for tests that do not need statistical power."""
+    return make_fixture("planted", n_per_source=40, captions_per_image=3)
