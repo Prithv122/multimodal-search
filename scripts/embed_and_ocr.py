@@ -177,13 +177,14 @@ class ClipEncoder:
 
     size = 224
 
-    def __init__(self, device: str):
+    def __init__(self, device: str, threads: int = 4):
         import torch
         from transformers import CLIPTokenizerFast
 
         if device == "cuda" and not torch.cuda.is_available():
             raise SystemExit("--device cuda requested but torch.cuda is not available")
         self.torch = torch
+        torch.set_num_threads(threads)
         self.device = device
         self.tokenizer = CLIPTokenizerFast.from_pretrained(CLIP_HF_ID)
         self.mean = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
@@ -244,7 +245,7 @@ class ClipEncoder:
 
 
 def run_clip(args, data_dir, gallery, queries, shas, cache_dir) -> dict:
-    enc = ClipEncoder(args.device)
+    enc = ClipEncoder(args.device, args.torch_threads)
     ccache = clip_cache_dir(cache_dir)
     (ccache / "img").mkdir(parents=True, exist_ok=True)
     (ccache / "txt").mkdir(parents=True, exist_ok=True)
@@ -602,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--batch-size", type=int, default=16)
     ap.add_argument("--ocr-preprocessing", choices=OCR_PREPROCESSING, default="none")
     ap.add_argument("--ocr-models", choices=sorted(OCR_MODELS), default=DEFAULT_OCR_MODELS)
+    ap.add_argument("--torch-threads", type=int, default=4, help="CPU threads for CLIP")
     ap.add_argument("--ocr-threads", type=int, default=4, help="PaddleOCR CPU threads")
     ap.add_argument("--cache-dir", type=Path, default=None, help="default: <data-dir>/.cache")
     args = ap.parse_args(argv)
