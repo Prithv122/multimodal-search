@@ -275,8 +275,9 @@ uv run mmsearch eval
 ```
 
 The test split is scored once. `uv run mmsearch eval --split test` writes
-`results/test/eval.json` and refuses to run again once that file exists. The regrouping by hand
-tags, once `data/tags.csv` exists, is `uv run mmsearch tagged`.
+`results/test/eval.json` and refuses to run again once that file exists. The hand tags go in by
+blind id in `data/tagging/tag_sheet.csv`; `uv run python scripts/import_tags.py` checks them and
+writes `data/tags.csv`, and `uv run mmsearch tagged` regroups the saved test rows by tag.
 
 Search with a stored caption's embedding (no model needed):
 

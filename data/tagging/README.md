@@ -16,3 +16,9 @@ Tag from the caption and image only. `tag_key.csv` maps the sheet ids back to re
 
 The images live in the git-ignored `data/local/tagging_images/`; recreate them with
 `uv run python scripts/fetch_gallery.py tagsheet` after `download`.
+
+When all 100 rows are tagged:
+
+    uv run python scripts/import_tags.py --check   # validate the sheet, write nothing
+    uv run python scripts/import_tags.py           # write data/tags.csv
+    uv run mmsearch tagged --out results/test/tagged.json
