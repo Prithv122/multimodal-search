@@ -1,0 +1,231 @@
+{
+  "label": "EXPLORATORY: post hoc, not pre-registered, descriptive only",
+  "inputs": [
+    "results/test/per_query.csv",
+    "data/queries.jsonl",
+    "data/ocr/ocr.jsonl",
+    "data/gallery.jsonl"
+  ],
+  "hit_definition": "recall@10 == 1 for the query's own image, read from per_query.csv",
+  "fusion_arm": "fuse_score_weighted",
+  "n_test_queries": 4002,
+  "clip_vs_ocr_bm25": {
+    "coco": {
+      "n_queries": 2002,
+      "both_hit": 51,
+      "only_clip_hits": 1807,
+      "only_ocr_bm25_hits": 3,
+      "neither_hits": 141,
+      "share_both": 0.025,
+      "share_only_clip": 0.903,
+      "share_only_ocr_bm25": 0.001,
+      "share_neither": 0.07
+    },
+    "textcaps": {
+      "n_queries": 2000,
+      "both_hit": 948,
+      "only_clip_hits": 828,
+      "only_ocr_bm25_hits": 70,
+      "neither_hits": 154,
+      "share_both": 0.474,
+      "share_only_clip": 0.414,
+      "share_only_ocr_bm25": 0.035,
+      "share_neither": 0.077
+    }
+  },
+  "rescue_break_vs_clip": {
+    "fuse_score_weighted": {
+      "coco": {
+        "n_queries": 2002,
+        "clip_misses_top10": 144,
+        "clip_hits_top10": 1858,
+        "rescued": 2,
+        "broken": 9,
+        "net": -7,
+        "rescued_share_of_clip_misses": 0.014,
+        "broken_share_of_clip_hits": 0.005
+      },
+      "textcaps": {
+        "n_queries": 2000,
+        "clip_misses_top10": 224,
+        "clip_hits_top10": 1776,
+        "rescued": 59,
+        "broken": 5,
+        "net": 54,
+        "rescued_share_of_clip_misses": 0.263,
+        "broken_share_of_clip_hits": 0.003
+      }
+    },
+    "fuse_rrf": {
+      "coco": {
+        "n_queries": 2002,
+        "clip_misses_top10": 144,
+        "clip_hits_top10": 1858,
+        "rescued": 4,
+        "broken": 386,
+        "net": -382,
+        "rescued_share_of_clip_misses": 0.028,
+        "broken_share_of_clip_hits": 0.208
+      },
+      "textcaps": {
+        "n_queries": 2000,
+        "clip_misses_top10": 224,
+        "clip_hits_top10": 1776,
+        "rescued": 90,
+        "broken": 273,
+        "net": -183,
+        "rescued_share_of_clip_misses": 0.402,
+        "broken_share_of_clip_hits": 0.154
+      }
+    },
+    "fuse_score": {
+      "coco": {
+        "n_queries": 2002,
+        "clip_misses_top10": 144,
+        "clip_hits_top10": 1858,
+        "rescued": 2,
+        "broken": 174,
+        "net": -172,
+        "rescued_share_of_clip_misses": 0.014,
+        "broken_share_of_clip_hits": 0.094
+      },
+      "textcaps": {
+        "n_queries": 2000,
+        "clip_misses_top10": 224,
+        "clip_hits_top10": 1776,
+        "rescued": 80,
+        "broken": 57,
+        "net": 23,
+        "rescued_share_of_clip_misses": 0.357,
+        "broken_share_of_clip_hits": 0.032
+      }
+    }
+  },
+  "ocr_coverage_gallery": {
+    "coco": {
+      "images": 500,
+      "images_with_any_ocr_text": 192,
+      "share": 0.384
+    },
+    "textcaps": {
+      "images": 500,
+      "images_with_any_ocr_text": 496,
+      "share": 0.992
+    }
+  },
+  "reading_slice_by_gold_image_ocr": {
+    "queries_whose_image_has_ocr_text": 1985,
+    "queries_whose_image_has_no_ocr_text": 15,
+    "clip_top10_hit_rate_when_text": 0.889,
+    "clip_top10_hit_rate_when_no_text": 0.8,
+    "ocr_top10_hit_rate_when_text": 0.513,
+    "fusion_ndcg10_minus_clip_when_text": 0.067,
+    "fusion_ndcg10_minus_clip_when_no_text": -0.036
+  },
+  "ocr_returns_something": {
+    "coco": {
+      "n_queries": 2002,
+      "queries_sharing_a_token_with_any_gallery_ocr_text": 2002,
+      "share_sharing_a_token_with_any_ocr_text": 1.0,
+      "queries_sharing_a_token_with_their_own_image_ocr_text": 86,
+      "share_sharing_a_token_with_own_image_ocr_text": 0.043,
+      "median_images_matched_per_query": 102,
+      "top_query_tokens_found_in_ocr_text": [
+        {
+          "token": "a",
+          "queries": 1770,
+          "gallery_images_containing_it": 72
+        },
+        {
+          "token": "on",
+          "queries": 689,
+          "gallery_images_containing_it": 29
+        },
+        {
+          "token": "of",
+          "queries": 640,
+          "gallery_images_containing_it": 53
+        },
+        {
+          "token": "the",
+          "queries": 560,
+          "gallery_images_containing_it": 63
+        },
+        {
+          "token": "in",
+          "queries": 542,
+          "gallery_images_containing_it": 29
+        },
+        {
+          "token": "with",
+          "queries": 488,
+          "gallery_images_containing_it": 15
+        },
+        {
+          "token": "and",
+          "queries": 475,
+          "gallery_images_containing_it": 43
+        },
+        {
+          "token": "is",
+          "queries": 311,
+          "gallery_images_containing_it": 23
+        }
+      ]
+    },
+    "textcaps": {
+      "n_queries": 2000,
+      "queries_sharing_a_token_with_any_gallery_ocr_text": 2000,
+      "share_sharing_a_token_with_any_ocr_text": 1.0,
+      "queries_sharing_a_token_with_their_own_image_ocr_text": 1423,
+      "share_sharing_a_token_with_own_image_ocr_text": 0.712,
+      "median_images_matched_per_query": 110,
+      "top_query_tokens_found_in_ocr_text": [
+        {
+          "token": "a",
+          "queries": 1481,
+          "gallery_images_containing_it": 72
+        },
+        {
+          "token": "the",
+          "queries": 992,
+          "gallery_images_containing_it": 63
+        },
+        {
+          "token": "on",
+          "queries": 909,
+          "gallery_images_containing_it": 29
+        },
+        {
+          "token": "of",
+          "queries": 664,
+          "gallery_images_containing_it": 53
+        },
+        {
+          "token": "that",
+          "queries": 543,
+          "gallery_images_containing_it": 14
+        },
+        {
+          "token": "with",
+          "queries": 511,
+          "gallery_images_containing_it": 15
+        },
+        {
+          "token": "is",
+          "queries": 488,
+          "gallery_images_containing_it": 23
+        },
+        {
+          "token": "and",
+          "queries": 420,
+          "gallery_images_containing_it": 43
+        }
+      ]
+    }
+  },
+  "ocr_gold_in_top100_share": {
+    "coco": 0.043,
+    "textcaps": 0.702
+  }
+}
