@@ -219,8 +219,19 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
     retriever = Retriever.from_gallery(
         gallery, top_k=config.top_k, min_confidence=config.min_confidence
     )
+    # Only dev (for the weight and best-fusion choices) and the scored split are ranked, so a
+    # dev run does not pay for ranking the test queries it never reports.
+    dev_mask = query_split == "dev"
+    eval_mask = (
+        np.ones(len(queries), dtype=bool)
+        if config.split == "all"
+        else (query_split == config.split)
+    )
+    needed = dev_mask | eval_mask
+    ranked_queries = [q for q, use in zip(queries, needed, strict=True) if use]
     base = {
-        q.qid: retriever.base_rankings(q.text, gallery.query_vector(q.qid), q.qid) for q in queries
+        q.qid: retriever.base_rankings(q.text, gallery.query_vector(q.qid), q.qid)
+        for q in ranked_queries
     }
 
     # -- dev-only choices ------------------------------------------------
@@ -241,20 +252,17 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
             arm, b.clip, b.ocr, top_k=config.top_k, weight=choice.weight, ties=b.ties
         )
 
-    per_query = {
-        arm: metrics_matrix({q.qid: arm_ranking(arm, q.qid) for q in queries}, queries)
-        for arm in ARMS
-    }
-    dev_mask = query_split == "dev"
+    per_query = {}
+    for arm in ARMS:
+        matrix = np.zeros((len(queries), len(METRICS)))  # rows of unranked queries stay unused
+        matrix[needed] = metrics_matrix(
+            {q.qid: arm_ranking(arm, q.qid) for q in ranked_queries}, ranked_queries
+        )
+        per_query[arm] = matrix
     dev_ndcg = {arm: float(per_query[arm][dev_mask, NDCG].mean()) for arm in ARMS}
     best_fusion = pick_best_fusion(dev_ndcg)
 
     # -- scoring the requested split ------------------------------------------
-    eval_mask = (
-        np.ones(len(queries), dtype=bool)
-        if config.split == "all"
-        else (query_split == config.split)
-    )
     image_index = {item.image_id: i for i, item in enumerate(gallery.items)}
     clusters_all = np.array([image_index[q.image_id] for q in queries])
 
