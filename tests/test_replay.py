@@ -10,7 +10,7 @@ import pytest
 
 from mmsearch import cli
 from mmsearch.cli import main
-from mmsearch.fixtures import make_fixture, write_fixture
+from mmsearch.fixtures import make_fixture, write_fixture, write_tags_csv
 
 
 @pytest.fixture
@@ -44,6 +44,25 @@ def test_replay_of_a_fresh_run_passes_quietly(run, capsys, tmp_path):
     assert out.strip() == f"replay OK: {n_rows} rows, {n_pq} per-query rows match {results}"
     assert "nDCG" not in out and "H1" not in out  # no metric table, no verdicts
     assert _tree(tmp_path) == before  # nothing created or rewritten
+
+
+def test_tags_added_after_a_run_do_not_break_its_replay(run, capsys, tmp_path):
+    # Like the real data at scoring time: no tags.csv and every query's tag null.
+    data, _, _ = run
+    (data / "tags.csv").unlink(missing_ok=True)
+    queries_path = data / "queries.jsonl"
+    rows = [json.loads(line) for line in queries_path.open(encoding="utf-8")]
+    queries_path.write_text(
+        "".join(json.dumps({**r, "tag": None}) + "\n" for r in rows), encoding="utf-8"
+    )
+    untagged = tmp_path / "out" / "untagged.json"
+    assert (
+        main(["eval", "--data-dir", str(data), "--resamples", "300", "--out", str(untagged)]) == 0
+    )
+    write_tags_csv(data / "tags.csv", {r["qid"]: "text" for r in rows[:10]})
+    capsys.readouterr()
+    assert main(_args(data, untagged)) == 0
+    assert capsys.readouterr().out.startswith("replay OK")
 
 
 def test_a_tampered_mean_fails_with_exit_1_and_a_diff(run, capsys):

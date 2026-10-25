@@ -148,7 +148,9 @@ def replay(
     stored_per_query = read_per_query(per_query_path)
 
     config = config_from_results(stored["config"], resamples)
-    result = run_study(load_gallery(data_dir), config)
+    # A run scored before data/tags.csv existed has no tag slices; recompute it the same way.
+    had_tags = any(str(r.get("slice", "")).startswith("tag=") for r in stored["rows"])
+    result = run_study(load_gallery(data_dir, use_tags=had_tags), config)
     fresh = json.loads(json.dumps(result.to_json()))
     fast = resamples is not None and resamples != stored["config"]["resamples"]
 

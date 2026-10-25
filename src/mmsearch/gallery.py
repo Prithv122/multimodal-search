@@ -401,8 +401,12 @@ def validate_gallery(gallery: Gallery) -> None:
         raise DataError("embeddings: shapes disagree with the gallery or between image and text")
 
 
-def load_gallery(data_dir: str | Path = "data") -> Gallery:
-    """Read and validate a data directory. Embeddings, OCR and tags are optional on disk."""
+def load_gallery(data_dir: str | Path = "data", *, use_tags: bool = True) -> Gallery:
+    """Read and validate a data directory. Embeddings, OCR and tags are optional on disk.
+
+    ``use_tags=False`` ignores ``tags.csv``, so a run saved before the tags existed can be
+    recomputed exactly as it was scored.
+    """
     root = Path(data_dir)
     if not root.is_dir():
         raise DataError(f"data directory not found: {root}")
@@ -410,7 +414,7 @@ def load_gallery(data_dir: str | Path = "data") -> Gallery:
     queries = load_queries(root / QUERIES_FILE)
 
     tags_path = root / TAGS_FILE
-    if tags_path.is_file():
+    if use_tags and tags_path.is_file():
         tags = load_tags(tags_path)
         unknown = sorted(set(tags) - {q.qid for q in queries})
         if unknown:
