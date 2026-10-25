@@ -6,13 +6,16 @@
 
 [![CI](https://github.com/Prithv122/multimodal-search/actions/workflows/ci.yml/badge.svg)](https://github.com/Prithv122/multimodal-search/actions/workflows/ci.yml)
 
+**Publication status:** not yet public; the CI badge above will resolve once the repository is
+published (update this line then).
 **Live demo:** not deployed. A local Gradio app is in [`demo/`](demo/README.md).
 **Stack:** Python 3.12 · numpy + scipy (index, BM25, fusion, metrics, bootstrap) · CLIP ViT-B/32 via `transformers` · PaddleOCR 3.7 (PP-OCRv5 mobile) · Gradio
 
 **Headline.** Fusing CLIP with OCR text lifted nDCG@10 on the reading slice by +0.066
 [+0.054, +0.079] and cost the visual slice 0.008 [0.003, 0.013]. The pre-registered bar for the
-reading slice was +0.10, so **H1 failed** and H2 passed. CLIP alone already scored 0.748 on the
-reading slice, which is the main finding. Details and caveats in §5.
+reading slice was +0.10, so **H1 failed** and H2 passed. CLIP alone scored 0.748 on the
+reading slice, level with 0.745 on the visual slice; the hand tags are needed to say why.
+Details and caveats in §5.
 
 ---
 
@@ -52,8 +55,10 @@ Model facts, from `data/embeddings/meta.json`: CLIP ViT-B/32 OpenAI weights thro
 `transformers` 5.20.2, CPU, 512 dimensions, vectors L2-normalised; 0 of 5,002 captions were
 truncated at CLIP's 77-token limit. OCR is PaddleOCR 3.7.0 PP-OCRv5 mobile detector and
 recogniser with no preprocessing. It found some text on 192 of 500 COCO images and 496 of 500
-TextCaps images. The OCR pass took about 2.5 hours on a shared, loaded CPU; CLIP took about 8
-minutes.
+TextCaps images (467 text lines in the COCO images, 6,352 in the TextCaps images). Observed
+wall-clock, not a clean benchmark: the OCR pass took about 2.5 hours on a CPU shared with other
+jobs at 80 to 100% load, roughly 1 to 1.5 s per COCO image and 5 to 12 s per TextCaps image
+(many more text lines to recognise); CLIP took about 8 minutes.
 
 ## 3. Architecture
 
@@ -95,12 +100,12 @@ at a pinned commit; each file's header records the provenance.
 | Best fusion | Chosen on dev only, then fixed | Report the best of three on test | A best-of-three pick on test would inflate H1. The dev score of the weighted arm is in-sample (its weight was tuned there), which favours it in the pick; that is recorded in the results file |
 | Fusion weight | Dev grid 0.00 to 1.00 step 0.05, pooled nDCG@10; chose 0.70 | A fixed 0.5, or tuning per slice | Per-slice weights would use the slice label, which a real query does not have |
 | Dataset-as-slice confound | Report by source as pre-registered; hand-tag 100 blind queries as a robustness check | Treat source as query type | A TextCaps caption may not need reading. The tag sheet hides the source. Tags regroup the saved per-query rows, so applying them is not a second look at test |
-| Uncertainty | Cluster bootstrap over images (20,000 resamples), paired differences | Bootstrap over queries; report two overlapping intervals | The 5 captions of an image are not independent. Resampling images keeps them together, and pairing both arms on one resample gives the interval of the difference itself |
+| Uncertainty | Cluster bootstrap over images (20,000 resamples), paired differences | Bootstrap over queries; report two overlapping intervals | The captions of an image (5 each; two COCO images have 6) are not independent. Resampling images keeps them together, and pairing both arms on one resample gives the interval of the difference itself |
 | Score normalisation | Per-query min-max over each arm's top 100 | Raw scores; z-score | BM25 and cosine live on different scales. Min-max is the vendored fusion's own choice and the weight is tuned on the exact quantity it is later applied to. Its weakness shows in §5 |
 | RRF constant | k = 60, untouched | Tune k | k is a pre-registered constant. Tuning it on dev would have been allowed; leaving it shows what the standard setting does |
 | Tie-breaking | Per-query hash of (query id, image id), added in Amendment A1 | Image id or file order | Ties are common here and the ids and file order both track the slice. Found by code review on fixtures, before any real number. See [`NOTES.md`](NOTES.md) |
 | CLIP library | `transformers`, OpenAI checkpoint | `open_clip_torch` | Same weights. The fast tokenizer reports un-truncated lengths (needed to count the 77-token cutoff) and there is no extra `timm`/`torchvision` dependency |
-| OCR model | PP-OCRv5 mobile, no preprocessing | Server models; CLAHE | The gallery images are natural scenes, and the CPU is shared. The mobile pair ran at about 1.3 to 1.7 s per image with 2 to 4 threads. The server pair is a script flag and was not run, so the choice is untested: a larger OCR model may read more. Preprocessing was fixed in the plan before the run |
+| OCR model | PP-OCRv5 mobile, no preprocessing | Server models; CLAHE | The gallery images are natural scenes, and the CPU is shared. On a loaded, shared CPU the mobile pair took about 2.5 hours for all 1,000 images. The server pair is a script flag and was not run, so the choice is untested: a larger OCR model may read more. Preprocessing was fixed in the plan before the run |
 | Exact search | Brute-force cosine and BM25 | An ANN index | 1,000 vectors. Approximation would add error and a knob to save microseconds |
 | Test-set discipline | CLI refuses a second test run; per-query rows saved | Re-run when convenient | Tags and any later regrouping read the saved rows, so test is never re-ranked |
 
@@ -171,8 +176,9 @@ fusion 0.776 [0.759, 0.792]. MRR@100 and recall@5 are in the results file.
 
 What the table says:
 
-- **CLIP reads well enough on this data.** nDCG@10 is 0.748 on the reading slice and 0.745 on
-  the visual slice. The premise that CLIP fails on text-heavy queries is not visible here.
+- **CLIP scores the same on the reading slice as on the visual slice** (0.748 vs 0.745).
+  Whether that is CLIP reading, or TextCaps captions describing the scene, is untested until the
+  hand tags are done.
 - **OCR-BM25 alone is a weak arm that works only where there is text:** 0.419 on the reading
   slice, 0.019 on the visual slice.
 - **Plain RRF and equal-weight fusion hurt.** RRF is below CLIP on both slices; equal-weight
@@ -294,8 +300,8 @@ uv run ruff check .
 
 ### Local-only stages (rebuild the data; heavy)
 
-These need the `embed` extra (torch, transformers, PaddleOCR), an internet connection and about
-2.5 hours for OCR on a CPU.
+These need the `embed` extra (torch, transformers, PaddleOCR), an internet connection and a long
+OCR pass (about 2.5 hours observed here, on a CPU shared with other jobs).
 
 ```bash
 uv run python scripts/fetch_gallery.py select
@@ -320,8 +326,9 @@ each image from its original host.
   enough that scanning every vector costs more than the approximation error. At 1,000 vectors
   exact search is the right choice. At 100,000 images the same arithmetic still works; at 100
   million it does not.
-- **OCR cost dominates.** It took about 2.5 hours for 1,000 images on a loaded CPU, against
-  about 8 minutes for CLIP. At scale: batch the detector and recogniser on a GPU, skip images
+- **OCR cost dominates.** Observed wall-clock was about 2.5 hours for 1,000 images on a CPU
+  shared with other jobs (TextCaps images, with far more text lines, took 5 to 12 s each against
+  1 to 1.5 s for COCO), against about 8 minutes for CLIP. At scale: batch the detector and recogniser on a GPU, skip images
   where a cheap text detector finds nothing (only 192 of 500 COCO images had any text), and run
   OCR once at ingest, never at query time.
 - **Batch the CLIP image encoder on a GPU** and cache vectors by content hash, as the embedding

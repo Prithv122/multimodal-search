@@ -11,12 +11,13 @@ exploratory.
 - **AI engineer angle.** Built a text-to-image search system fusing CLIP ViT-B/32 embeddings with
   BM25 over PaddleOCR text on a 1,000-image gallery (COCO + TextCaps, 5,002 caption queries);
   two-stage design lets CI replay committed vectors with numpy and scipy only. A dev-tuned
-  weighted fusion raised nDCG@10 on the text-heavy slice from 0.748 to 0.815 (+0.066, 95% CI
-  +0.054 to +0.079) at a cost of 0.008 on the visual slice, while plain RRF lost 0.440 there.
+  weighted fusion gained +0.066 nDCG@10 on the TextCaps slice (95% CI +0.054 to +0.079), below
+  the pre-registered +0.10 bar, at a cost of 0.008 on the COCO slice, while plain RRF lost 0.440
+  there.
 - **Data science angle.** Pre-registered a hypothesis test before embedding any data (arms, split,
   pass thresholds), then scored the held-out split once with a paired cluster bootstrap over
   images (20,000 resamples). The headline hypothesis failed (+0.066 against a +0.10 bar) and was
-  reported as a failure; CLIP alone already scored 0.748 on text-heavy images.
+  reported as a failure; CLIP alone scored 0.748 on the TextCaps slice, level with 0.745 on COCO.
 - **Evaluation-rigour angle.** Caught a slice-correlated tie-breaking bias (image-id and file
   order) in code review on synthetic fixtures before any real number existed, fixed it with a
   per-query hash, and logged it as a dated amendment; tested the pipeline against planted, null,

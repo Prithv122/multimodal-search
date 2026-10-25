@@ -22,8 +22,8 @@ premise assumed. Exploratory counts agree: OCR hit the top 10 where CLIP missed 
 
 What I would not say: that fusion is worthless, or that OCR does not matter. The reading slice
 is a dataset, not a set of queries that need reading. I would say that on caption queries over
-1,000 images, a tuned fusion gives a small, real gain on text-heavy images and a small, real cost
-on the rest.
+1,000 images, a tuned fusion gives a small, real gain on the reading-slice (TextCaps) queries
+and a small, real cost on the COCO queries.
 
 ---
 
@@ -53,7 +53,7 @@ that says they are not.
 
 ### Q3. Why a cluster bootstrap over images and not an ordinary bootstrap over queries?
 
-**A.** Each image has five captions, and they are not independent. If the image is hard for CLIP,
+**A.** Each image has five captions (two COCO images have six), and they are not independent. If the image is hard for CLIP,
 all five captions tend to be hard together. A bootstrap over queries treats 4,002 test queries as
 4,002 independent draws and reports intervals that are too narrow. Resampling images with
 replacement, each image carrying all its captions, keeps that dependence. The effective sample
@@ -88,8 +88,9 @@ scoring anything again.
 That last part matters. The test split is scored once. If I had to re-run it to apply tags, I
 would break my own rule. The tags are not done yet and the README says so; the project does not
 claim anything about queries that truly need reading. The exploratory split by whether the gold
-image has OCR text at all (1,985 of 2,000 reading queries do) shows the confound clearly: almost
-every TextCaps image has text, but CLIP still hits the top 10 on 0.889 of those queries.
+image has OCR text at all (1,985 of 2,000 reading queries do) is exploratory and consistent with the
+confound; only the tags can separate it. Almost every TextCaps image has text, but CLIP still
+hits the top 10 on 0.889 of those queries.
 
 ---
 
@@ -102,8 +103,9 @@ already split that way: the heavy stage writes arrays, the serving stage reads t
 
 What breaks first, in order:
 
-1. **OCR cost at ingest.** It took about 2.5 hours for 1,000 images on a shared CPU, against about
-   8 minutes for CLIP. I would use GPU batching, skip images where a cheap text detector finds
+1. **OCR cost at ingest.** Observed wall-clock was about 2.5 hours for 1,000 images on a CPU shared
+   with other jobs (TextCaps images, with far more text lines, took 5 to 12 s each against 1 to
+   1.5 s for COCO), against about 8 minutes for CLIP. I would use GPU batching, skip images where a cheap text detector finds
    nothing (only 192 of 500 COCO images had any text), and cache by content hash.
 2. **Exact search.** Fine at 1,000 vectors. At millions I would move to an approximate index and
    measure recall loss against exact search, since that approximation error is not in these results.
@@ -116,7 +118,8 @@ What breaks first, in order:
 
 Honest scope: given the measured result, I would ship CLIP alone first and add the OCR arm only
 after it showed a gain on a query set that really needs reading. The gain I measured is +0.066
-nDCG@10 on caption queries, at the cost of an OCR pipeline.
+nDCG@10 on the reading-slice (TextCaps) queries, and +0.029 pooled over both slices, at the cost
+of an OCR pipeline.
 
 ---
 

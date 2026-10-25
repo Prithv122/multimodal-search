@@ -38,8 +38,10 @@ six months from now. Numbers are copied from `results/` files.
 - **Broke:** `eval` defaulted to the test split. One careless run would have used up the single
   look.
 - **Fixed by:** default is now dev. `--split test` writes `results/test/eval.json` with an
-  exclusive create and is refused once that file exists. A custom `--out` and `--split all` are
-  refused on real data because either would score test with no record.
+  exclusive create and is refused once that file exists. For `--split test`, a custom `--out` is
+  refused, and `--split all` is refused on real data, because either would score test with no
+  record. For dev, `--out` is allowed; `results/dev/eval.json` came from
+  `uv run mmsearch eval --split dev --out results/dev/eval.json`.
 
 ### Synthetic fixtures: planted, null, filler, shuffled
 - **Tried:** a planted effect (OCR-only words in reading-slice captions) and a null (OCR text
@@ -59,10 +61,14 @@ six months from now. Numbers are copied from `results/` files.
 - **Chose:** PP-OCRv5 mobile detector and recogniser, no preprocessing. The script also has a
   `server` model flag and a CLAHE flag; neither was run for the reported numbers.
 - **Broke:** OCR throughput on a loaded, shared machine was poor with high thread counts
-  or oneDNN. Measured on this machine (12 threads, shared with other jobs): 2 to 4 threads ran about 1.3 to
-  1.7 s per image on the mobile models, while 6 to 8 threads or oneDNN were 2 to 4 times slower.
-  The script now bounds threads and turns oneDNN off. CLIP weights are loaded lazily.
-- **Result:** the full OCR pass took about 2.5 hours of wall time. CLIP took about 8 minutes.
+  or oneDNN. On a 6-image dev sample (12 threads, shared with other jobs), 2 to 4 threads ran
+  about 1.3 to 1.7 s per image on the mobile models, while 6 to 8 threads or oneDNN were 2 to 4
+  times slower. The script now bounds threads and turns oneDNN off. CLIP weights are loaded lazily.
+- **Result (observed wall-clock under load, not a clean benchmark):** the full OCR pass took
+  about 2.5 hours. The runner's log showed roughly 1 to 1.5 s per COCO image but 5 to 12 s per
+  TextCaps image, because those images hold far more text (6,352 OCR lines in 500 TextCaps
+  images against 467 in 500 COCO images). The CPU was shared with other jobs at 80 to 100% load.
+  CLIP took about 8 minutes.
 - **Not done:** no comparison against the server models, so I do not know whether a better OCR
   model would change H1. It is the first thing to try if this is reopened.
 
@@ -74,9 +80,10 @@ six months from now. Numbers are copied from `results/` files.
   `best fusion − clip`. It ranks nothing and chooses nothing. The same rows fed
   `scripts/explore.py`.
 
-### The main surprise: CLIP already reads
+### The main surprise: CLIP scores the same on both slices
 - **Expected:** a clear gap, CLIP weak on the reading slice, OCR filling it.
-- **Got:** CLIP nDCG@10 0.748 on TextCaps against 0.745 on COCO. OCR-BM25 alone reached 0.419 on
+- **Got:** CLIP nDCG@10 0.748 on TextCaps against 0.745 on COCO. Whether that is CLIP reading,
+  or TextCaps captions describing the scene, is untested until the hand tags are done. OCR-BM25 alone reached 0.419 on
   TextCaps, and found a hit that CLIP missed on only 70 of 2,000 reading queries
   (`results/test/exploratory.json`).
 - **Possible reasons, none tested:** TextCaps captions often name the scene as well as the
@@ -111,4 +118,4 @@ six months from now. Numbers are copied from `results/` files.
       Does the fusion gain grow on queries tagged `text`?
 - [ ] OCR word recall on a hand-checked sample of reading-slice images.
 - [ ] Would the PP-OCRv5 server models, or a confidence floor (`--min-confidence`), change H1?
-- [ ] Hosted demo and a public repo are not done.
+- [ ] Hosted demo and a public repo are not done (publication status is stated in the README).
