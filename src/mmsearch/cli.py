@@ -1,4 +1,4 @@
-"""Command line: ``mmsearch stats | eval | search | tagged``."""
+"""Command line: ``mmsearch stats | eval | search | tagged | replay``."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from mmsearch.embed import FakeEmbedder, load_encoder
 from mmsearch.evaluate import SPLITS, EvalConfig, run_study
 from mmsearch.fixtures import FIXTURE_KINDS, make_fixture
 from mmsearch.gallery import DataError, Gallery, load_gallery
+from mmsearch.replay import replay
 from mmsearch.report import format_stats, format_study
 from mmsearch.split import DEFAULT_DEV_FRACTION, DEFAULT_SPLIT_SEED, split_images
 from mmsearch.tagged import (
@@ -102,6 +103,19 @@ def build_parser() -> argparse.ArgumentParser:
     tg.add_argument("--resamples", type=int, default=20_000)
     tg.add_argument("--seed", type=int, default=EvalConfig.seed)
     tg.add_argument("--out", type=Path, help="write the table as JSON here")
+
+    rp = sub.add_parser(
+        "replay",
+        help="recompute a saved run in memory and check it against the stored files",
+    )
+    rp.add_argument("--results", type=Path, default=TEST_RESULT_PATH, help="results JSON to check")
+    rp.add_argument("--data-dir", type=Path, default=Path("data"))
+    rp.add_argument(
+        "--resamples",
+        type=int,
+        help="fast mode: fewer bootstrap resamples; compares means, checks without intervals and "
+        "per-query rows, and skips the interval comparison",
+    )
     return parser
 
 
@@ -207,6 +221,24 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _per_query_path(results: Path) -> Path:
+    """Where the per-query CSV of a results file lives (fixed name for the guarded test file)."""
+    if results.resolve() == TEST_RESULT_PATH.resolve():
+        return results.parent / PER_QUERY_FILE
+    return results.with_name(results.stem + "_" + PER_QUERY_FILE)
+
+
+def _cmd_replay(args: argparse.Namespace) -> int:
+    report = replay(
+        args.results, _per_query_path(args.results), args.data_dir, resamples=args.resamples
+    )
+    if report.ok:
+        print(report.summary())
+        return 0
+    print(report.summary(), file=sys.stderr)
+    return 1
+
+
 def _cmd_tagged(args: argparse.Namespace) -> int:
     if not args.results.exists():
         raise DataError(f"{args.results} not found; score a split first")
@@ -241,6 +273,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "eval": _cmd_eval,
         "search": _cmd_search,
         "tagged": _cmd_tagged,
+        "replay": _cmd_replay,
     }
     try:
         return handlers[args.command](args)
