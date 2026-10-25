@@ -23,6 +23,7 @@ questions, treat every number as descriptive. They suggest an explanation; they 
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from collections import Counter
@@ -87,7 +88,17 @@ def _rescue_break(rows: list[dict], fusion: str) -> dict:
     }
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Exploratory regrouping of the saved test rows (writes JSON; scores nothing)."
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=ROOT / "results/test/exploratory.json",
+        help="where to write the JSON (default: results/test/exploratory.json)",
+    )
+    args = parser.parse_args(argv)
     rows = [r for r in _read_per_query(ROOT / "results/test/per_query.csv") if r["split"] == "test"]
     queries = {
         q["qid"]: q
@@ -214,9 +225,10 @@ def main() -> None:
         for s in SLICES
     }
 
-    path = ROOT / "results/test/exploratory.json"
+    path = args.out
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {path.relative_to(ROOT)}")
+    print(f"wrote {path}")
 
 
 if __name__ == "__main__":
