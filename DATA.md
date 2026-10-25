@@ -62,7 +62,8 @@ The CVDF mirror resolved (200) for the 3 random sampled gallery ids in the dry r
 
 The page also warns that some Open Images files are rotated and tells users to check the Rotation
 field of the Open Images id files. This script reads EXIF orientation from each downloaded file
-and the count is in "Download results" below; the embedding step must apply it.
+and the count is in "Download results" below: no file carries a rotation flag, so no
+rotation was needed.
 
 | File | Bytes | sha256 |
 |---|---|---|
@@ -93,7 +94,7 @@ CLIP ViT-B/32, OpenAI weights, MIT licence. Not downloaded by this script.
 | image ids, source, file name, URL, sha256, width, height, licence note (`data/gallery.jsonl`) | any image file |
 | human captions as queries (`data/queries.jsonl`) | the annotation zips and JSON files |
 | the blind tagging sheet (captions, opaque ids) | copies of images used for tagging |
-| later: OCR text and CLIP embeddings derived from the images | model weights |
+| OCR text (`data/ocr/`) and CLIP embeddings (`data/embeddings/`) derived from the images | model weights |
 
 ## Attribution required
 
