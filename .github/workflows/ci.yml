@@ -40,3 +40,9 @@ jobs:
 
       - name: Planted effect is detected on the test split
         run: uv run mmsearch eval --fixture planted --split test --resamples 2000
+
+      - name: Committed dev results reproduce (point estimates and per-query rows)
+        run: uv run mmsearch replay --results results/dev/eval.json --resamples 200
+
+      - name: Committed test results reproduce (point estimates and per-query rows)
+        run: uv run mmsearch replay --results results/test/eval.json --resamples 200
