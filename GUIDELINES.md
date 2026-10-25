@@ -21,10 +21,10 @@ two closes it without costing the visual slice. The plan and pass rules are in `
 
 ## Acceptance criteria
 
-- [ ] The pre-registered H1 and H2 are scored once on the test split and reported as written
-- [ ] Every README number comes from `results/` files produced by the committed code and arrays
-- [ ] The synthetic planted fixture is detected and the null fixture is not (tested in CI)
-- [ ] The package never imports torch; CI asserts it
+- [x] The pre-registered H1 and H2 are scored once on the test split and reported as written (H1 fail, H2 pass)
+- [x] Every README number comes from `results/` files produced by the committed code and arrays
+- [x] The synthetic planted fixture is detected and the null fixture is not (tested in CI)
+- [x] The package never imports torch; CI asserts it
 - [ ] Runs from a clean clone using only the documented steps
 - [ ] Tests, lint and CI green
 
@@ -42,4 +42,8 @@ two closes it without costing the visual slice. The plan and pass rules are in `
   run locally and write `data/`; everything in `src/mmsearch` replays those arrays.
 - Downloads live in the git-ignored `data/local/`.
 - The slice is the source dataset, not the query type. The owner's hand tags in `data/tags.csv`
-  are the robustness check for that confound.
+  are the robustness check for that confound. They are not applied yet: the 100-query blind
+  sheet is in `data/tagging/`, and `mmsearch tagged` regroups the saved per-query rows without
+  re-ranking.
+- Open items: hand tags, an OCR word-recall hand check, a hosted demo and the public repository.
+  `scripts/explore.py` writes the labelled-exploratory table in `results/test/exploratory.json`.

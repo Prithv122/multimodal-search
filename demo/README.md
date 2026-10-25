@@ -40,8 +40,8 @@ connection and an image can fail to load if its host removes it.
 
 ## When OCR is missing
 
-If `data/ocr/ocr.jsonl` is absent, or does not cover every gallery image (the OCR run is still
-going), the app shows a notice and runs CLIP-only: the OCR and fusion arms return the CLIP
+If `data/ocr/ocr.jsonl` is absent, or does not cover every gallery image (for example, an OCR run that has
+not finished), the app shows a notice and runs CLIP-only: the OCR and fusion arms return the CLIP
 ranking and say so. A partial file is not used, because an image that has not been read yet
 would look the same as an image with no text.
 
