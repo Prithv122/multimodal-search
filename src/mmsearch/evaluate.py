@@ -85,6 +85,10 @@ class StudyResult:
     config: dict[str, Any]
     rows: list[dict[str, Any]]
     checks: dict[str, Any] = field(default_factory=dict)
+    # One row per scored query: ids, slice keys and every arm's metrics. Saved next to the
+    # results JSON so a later slice (the owner's hand tags) is a regrouping of these rows,
+    # not a second scoring of the split.
+    per_query: list[dict[str, Any]] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         return {"config": self.config, "rows": self.rows, "checks": self.checks}
@@ -333,6 +337,22 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
             or (r["kind"] == "diff" and r["arm_a"] in keep and r["arm_b"] in keep)
         ]
 
+    per_query_rows = [
+        {
+            "qid": q.qid,
+            "image_id": q.image_id,
+            "source": q.source,
+            "split": str(query_split[i]),
+            **{
+                f"{arm}:{metric}": float(per_query[arm][i, m])
+                for arm in ARMS
+                for m, metric in enumerate(METRICS)
+            },
+        }
+        for i, q in enumerate(queries)
+        if eval_mask[i]
+    ]
+
     n_dev = sum(1 for s in assignment.values() if s == "dev")
     result_config = {
         **{k: (list(v) if isinstance(v, tuple) else v) for k, v in asdict(config).items()},
@@ -350,7 +370,7 @@ def run_study(gallery: Gallery, config: EvalConfig | None = None) -> StudyResult
         "embedding_model": gallery.embeddings.model_name if gallery.embeddings else None,
         "fusion_arms": list(FUSION_ARMS),
     }
-    return StudyResult(config=result_config, rows=rows, checks=checks)
+    return StudyResult(config=result_config, rows=rows, checks=checks, per_query=per_query_rows)
 
 
 # ---------------------------------------------------------------------------

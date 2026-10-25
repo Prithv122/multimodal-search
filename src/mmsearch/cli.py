@@ -1,4 +1,4 @@
-"""Command line: ``mmsearch stats | eval | search``."""
+"""Command line: ``mmsearch stats | eval | search | tagged``."""
 
 from __future__ import annotations
 
@@ -15,6 +15,14 @@ from mmsearch.fixtures import FIXTURE_KINDS, make_fixture
 from mmsearch.gallery import DataError, Gallery, load_gallery
 from mmsearch.report import format_stats, format_study
 from mmsearch.split import DEFAULT_DEV_FRACTION, DEFAULT_SPLIT_SEED, split_images
+from mmsearch.tagged import (
+    PER_QUERY_FILE,
+    format_tagged,
+    load_tag_file,
+    read_per_query,
+    tagged_table,
+    write_per_query,
+)
 
 TEST_RESULT_PATH = Path("results") / "test" / "eval.json"
 
@@ -79,6 +87,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--encoder",
         help="'fake' or 'package.module:factory' returning an object with encode_query(text)",
     )
+
+    tg = sub.add_parser(
+        "tagged", help="regroup a scored split's per-query results by the owner's hand tags"
+    )
+    tg.add_argument(
+        "--results",
+        type=Path,
+        default=TEST_RESULT_PATH,
+        help=f"results JSON of a scored split; {PER_QUERY_FILE} must sit next to it "
+        f"(default: {TEST_RESULT_PATH})",
+    )
+    tg.add_argument("--tags", type=Path, default=Path("data") / "tags.csv", help="qid,tag CSV")
+    tg.add_argument("--resamples", type=int, default=20_000)
+    tg.add_argument("--seed", type=int, default=EvalConfig.seed)
+    tg.add_argument("--out", type=Path, help="write the table as JSON here")
     return parser
 
 
@@ -141,7 +164,12 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             raise DataError(
                 f"{out} appeared while scoring; the test split is scored once"
             ) from None
-        print(f"\nwrote {out}")
+        # The guarded test record keeps the fixed name; any other run gets a sibling file.
+        per_query_path = out.parent / PER_QUERY_FILE
+        if test_path is None:
+            per_query_path = out.with_name(out.stem + "_" + PER_QUERY_FILE)
+        write_per_query(per_query_path, result.per_query, exclusive=test_path is not None)
+        print(f"\nwrote {out} and {per_query_path}")
     if args.fail_on_prereg:
         failed = [k for k in ("H1_reading", "H2_visual") if result.checks[k]["status"] == "FAIL"]
         if failed:
@@ -179,9 +207,41 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_tagged(args: argparse.Namespace) -> int:
+    if not args.results.exists():
+        raise DataError(f"{args.results} not found; score a split first")
+    results = json.loads(args.results.read_text(encoding="utf-8"))
+    best_fusion = results["checks"]["best_fusion"]
+    per_query_path = args.results.parent / PER_QUERY_FILE
+    if args.results.resolve() != TEST_RESULT_PATH.resolve():
+        per_query_path = args.results.with_name(args.results.stem + "_" + PER_QUERY_FILE)
+    if not args.tags.exists():
+        raise DataError(f"{args.tags} not found; the owner's hand tags are not in yet")
+    table = tagged_table(
+        read_per_query(per_query_path),
+        load_tag_file(args.tags),
+        best_fusion=best_fusion,
+        resamples=args.resamples,
+        seed=args.seed,
+    )
+    print(f"best fusion (chosen on dev): {best_fusion}")
+    print(format_tagged(table))
+    if args.out:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"best_fusion": best_fusion, "results": str(args.results), "rows": table}
+        args.out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        print(f"\nwrote {args.out}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    handlers = {"stats": _cmd_stats, "eval": _cmd_eval, "search": _cmd_search}
+    handlers = {
+        "stats": _cmd_stats,
+        "eval": _cmd_eval,
+        "search": _cmd_search,
+        "tagged": _cmd_tagged,
+    }
     try:
         return handlers[args.command](args)
     except DataError as exc:
