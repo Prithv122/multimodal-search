@@ -119,3 +119,30 @@ six months from now. Numbers are copied from `results/` files.
 - [ ] OCR word recall on a hand-checked sample of reading-slice images.
 - [ ] Would the PP-OCRv5 server models, or a confidence floor (`--min-confidence`), change H1?
 - [ ] Hosted demo and a public repo are not done (publication status is stated in the README).
+
+## Local CI record
+
+Hosted GitHub Actions was unavailable on this account (spending limit reached until about
+2026-11-02), so CI was replayed locally, step by step from `.github/workflows/ci.yml`, on a fresh
+clone with a fresh install.
+
+| | |
+|---|---|
+| Commit | `547584e74de69989a934dcd5d3c208ad48479f91` |
+| Date | 2026-10-25 |
+| Machine | Windows 11, Python 3.12 via uv (hosted runner: ubuntu-latest) |
+| Difference from hosted | pytest given a short `--basetemp` (Windows sandbox blocks the default temp dir) |
+
+| Step | Result |
+|---|---|
+| `uv sync --all-groups` | ok |
+| `ruff check .`, `ruff format --check .` | clean |
+| torch absent from the fast environment | ok |
+| `pytest --cov=src` | 167 tests passed (1 skipped without the demo extra), 92% coverage |
+| `mmsearch stats --fixture planted` | ok |
+| `mmsearch eval --fixture planted --split test --resamples 2000` | ok (H1 and H2 pass on the planted fixture) |
+| `mmsearch replay --results results/dev/eval.json --resamples 200` | 180 rows, 1,000 per-query rows match |
+| `mmsearch replay --results results/test/eval.json --resamples 200` | 180 rows, 4,002 per-query rows match |
+
+A full replay of `results/test/eval.json` (20,000 resamples, intervals compared too) also matched,
+in the working tree at `508c2ac`.

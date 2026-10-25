@@ -25,8 +25,8 @@ two closes it without costing the visual slice. The plan and pass rules are in `
 - [x] Every README number comes from `results/` files produced by the committed code and arrays
 - [x] The synthetic planted fixture is detected and the null fixture is not (tested in CI)
 - [x] The package never imports torch; CI asserts it
-- [ ] Runs from a clean clone using only the documented steps
-- [ ] Tests, lint and CI green
+- [x] Runs from a clean clone using only the documented steps (local CI replay, see NOTES.md)
+- [x] Tests, lint and CI green (CI replayed locally; hosted CI unavailable until about 2026-11-02)
 
 ## Conventions
 
