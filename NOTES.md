@@ -146,3 +146,11 @@ clone with a fresh install.
 
 A full replay of `results/test/eval.json` (20,000 resamples, intervals compared too) also matched,
 in the working tree at `508c2ac`.
+
+### Replay at `ddefe5f` (2026-11-01)
+
+Same workflow, fresh clone of `ddefe5fea1aeda8604a643ef025b79df9dd67c62`, fresh `uv sync`, short
+`--basetemp` on Windows. Adds the tag import script and the replay change since `547584e`.
+Every step passed: lint and format clean, torch absent, 176 tests collected and passed (1 skipped
+without the demo extra), 92% coverage, planted fixture eval ok, dev replay 180 rows + 1,000
+per-query rows match, test replay 180 rows + 4,002 per-query rows match.
