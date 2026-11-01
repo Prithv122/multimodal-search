@@ -45,5 +45,5 @@ two closes it without costing the visual slice. The plan and pass rules are in `
   are the robustness check for that confound. They are not applied yet: the 100-query blind
   sheet is in `data/tagging/`, and `mmsearch tagged` regroups the saved per-query rows without
   re-ranking.
-- Open items: hand tags, an OCR word-recall hand check, a hosted demo and the public repository.
+- Open items: hand tags, an OCR word-recall hand check and a hosted demo.
   `scripts/explore.py` writes the labelled-exploratory table in `results/test/exploratory.json`.

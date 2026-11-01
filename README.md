@@ -6,8 +6,7 @@
 
 [![CI](https://github.com/Prithv122/multimodal-search/actions/workflows/ci.yml/badge.svg)](https://github.com/Prithv122/multimodal-search/actions/workflows/ci.yml)
 
-**Publication status:** not yet public; the CI badge above will resolve once the repository is
-published (update this line then).
+**Publication status:** public since 2026-11-01. The owner's hand tags (§4) are still pending.
 **Live demo:** not deployed. A local Gradio app is in [`demo/`](demo/README.md).
 **Stack:** Python 3.12 · numpy + scipy (index, BM25, fusion, metrics, bootstrap) · CLIP ViT-B/32 via `transformers` · PaddleOCR 3.7 (PP-OCRv5 mobile) · Gradio
 

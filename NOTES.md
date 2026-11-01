@@ -118,7 +118,7 @@ six months from now. Numbers are copied from `results/` files.
       Does the fusion gain grow on queries tagged `text`?
 - [ ] OCR word recall on a hand-checked sample of reading-slice images.
 - [ ] Would the PP-OCRv5 server models, or a confidence floor (`--min-confidence`), change H1?
-- [ ] Hosted demo and a public repo are not done (publication status is stated in the README).
+- [ ] Hosted demo is not done. (The repository went public on 2026-11-01.)
 
 ## Local CI record
 
